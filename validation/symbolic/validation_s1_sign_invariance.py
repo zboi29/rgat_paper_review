@@ -4,8 +4,8 @@ Symbolic Validation: SI Lemma S1 — Sign Invariance of Geodesic Distance
 
 Validates that d_geo(-q, k) = d_geo(q, k) for unit quaternions q, k ∈ S³.
 
-This property is fundamental to the double-cover nature of Spin(3):
-q and -q represent the same rotation in SO(3).
+This is the double-cover property of Spin(3): q and -q represent the same
+rotation in SO(3), so a rotation-only distance must ignore the sign choice.
 
 Reference: si_rgat_paper.tex, Lemma S1
 """
@@ -19,24 +19,20 @@ def test_sign_invariance():
     print("=" * 65)
 
 
-    # =============================================================================
-    # CHECK 1: Sign invariance of inner product magnitude
-    # =============================================================================
+    # Check 1: the absolute quaternion similarity is unchanged by q -> -q.
     print("\n[1/3] Verifying sign invariance of similarity |⟨q, k⟩|...")
 
-    # Define symbolic quaternion components
+    # Symbolic quaternion coordinates.
     w_q, x_q, y_q, z_q = sp.symbols('w_q x_q y_q z_q', real=True)
     w_k, x_k, y_k, z_k = sp.symbols('w_k x_k y_k z_k', real=True)
 
-    # Inner product ⟨q, k⟩ = w_q*w_k + x_q*x_k + y_q*y_k + z_q*z_k
+    # Euclidean inner product on quaternion coordinates.
     inner_qk = w_q * w_k + x_q * x_k + y_q * y_k + z_q * z_k
 
-    # Inner product ⟨-q, k⟩ = -⟨q, k⟩
+    # Negating q flips the sign before the absolute value is applied.
     inner_neg_q_k = -w_q * w_k - x_q * x_k - y_q * y_k - z_q * z_k
 
-    # Check |⟨-q, k⟩| = |⟨q, k⟩|
-    # Proving Abs(x) == Abs(-x) for complex expressions can be hard for SymPy
-    # But proving Abs(x)**2 == Abs(-x)**2 is usually immediate.
+    # SymPy proves the squared-magnitude identity more reliably than Abs(x) = Abs(-x).
     diff_sq = simplify(Abs(inner_neg_q_k)**2 - Abs(inner_qk)**2)
 
     print(f"   |⟨-q, k⟩|^2 - |⟨q, k⟩|^2 = {diff_sq}")
@@ -49,15 +45,13 @@ def test_sign_invariance():
         assert False, f"Sign invariance mismatch: {diff_sq}"
 
 
-    # =============================================================================
-    # CHECK 2: Geodesic distance formula invariance
-    # =============================================================================
+    # Check 2: once |<q, k>| is invariant, the geodesic distance is invariant too.
     print("\n[2/3] Verifying d_geo formula invariance...")
 
-    # Similarity s(q, k) = |⟨q, k⟩|
+    # Scalar similarity variable.
     s = Symbol('s', real=True, positive=True)  # s ∈ (0, 1]
 
-    # Geodesic distance: d_geo = 2 * arccos(s)
+    # Geodesic distance on S^3 / {±1}.
     d_geo = 2 * acos(s)
 
     # Since s(-q, k) = |⟨-q, k⟩| = |−⟨q, k⟩| = |⟨q, k⟩| = s(q, k),
@@ -69,19 +63,17 @@ def test_sign_invariance():
     print("   SUCCESS: Geodesic distance formula is sign-invariant.")
 
 
-    # =============================================================================
-    # CHECK 3: Numerical verification with specific quaternions
-    # =============================================================================
+    # Check 3: confirm the same identity numerically on concrete unit quaternions.
     print("\n[3/3] Numerical verification with specific rotors...")
 
     def geodesic_distance(q, k):
         """Compute d_geo(q, k) = 2 * arccos(|⟨q, k⟩|)."""
         inner = sum(qi * ki for qi, ki in zip(q, k))
         s = abs(inner)
-        s = min(1.0, max(-1.0, s))  # Clamp for numerical safety
+        s = min(1.0, max(-1.0, s))  # Clamp against floating-point drift.
         return 2 * math.acos(s)
 
-    # Test quaternions
+    # Example unit quaternions.
     q = (0.5, 0.5, 0.5, 0.5)  # Unit quaternion
     neg_q = tuple(-qi for qi in q)  # Negated
     k = (1.0, 0.0, 0.0, 0.0)  # Identity rotation
@@ -102,9 +94,7 @@ def test_sign_invariance():
         assert False, f"Difference = {abs(d1 - d2)}"
 
 
-    # =============================================================================
-    # CHECK 4: Both signs simultaneously (double-cover verification)
-    # =============================================================================
+    # Check 4: the same double-cover argument applies when the key flips sign.
     print("\n[4/4] Double-cover verification: d_geo(q, -k) = d_geo(q, k)...")
 
     neg_k = tuple(-ki for ki in k)

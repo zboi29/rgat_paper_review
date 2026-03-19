@@ -7,8 +7,8 @@ Validates that:
 2. sum_j P_ij = 1 (row stochastic)
 3. y_i lies in convex hull of values (non-expansive)
 
-This confirms GSM attention defines a valid random walk on the graph of tokens,
-interpretable as heat diffusion.
+This packages GSM attention as a genuine diffusion operator: positive weights,
+row-wise normalization, and averaging behavior.
 
 Reference: si_rgat_paper.tex, Theorem S5, Corollary S6
 """
@@ -21,9 +21,7 @@ def test_markov_diffusion():
     print("=" * 65)
 
 
-    # =============================================================================
-    # CHECK 1: Positivity of Kernel
-    # =============================================================================
+    # Check 1: the Gibbs kernel is strictly positive.
     print("\n[1/3] Verifying kernel positivity...")
 
     d_sq = Symbol('d^2', real=True, nonnegative=True) # Squared distance
@@ -33,12 +31,11 @@ def test_markov_diffusion():
 
     print(f"   K(d, tau) = {K}")
 
-    # Exponential of real number is always positive
+    # exp(real) is always positive.
     if K.is_positive:
         print("   SUCCESS: Kernel K > 0 globally.")
     else:
-        # Sympy might need help inferring exp(real) > 0 explicitly if not obvious
-        # But usually exp(x).is_positive is True for real x
+        # Fallback in case SymPy does not discharge the positivity check directly.
         print("   Note: SymPy inference check...")
         if K.subs({d_sq: 1, tau: 1}) > 0:
             print("   SUCCESS: Kernel K > 0 (verified).")
@@ -47,9 +44,7 @@ def test_markov_diffusion():
             assert False, "Kernel non-positive"
 
 
-    # =============================================================================
-    # CHECK 2: Row Stochasticity
-    # =============================================================================
+    # Check 2: normalization turns the kernel into a row-stochastic matrix.
     print("\n[2/3] Verifying row stochasticity (sum P_ij = 1)...")
 
     j = Idx('j')
@@ -60,8 +55,7 @@ def test_markov_diffusion():
     P_indexed = K_indexed[j] / sum_K
     sum_P = Sum(P_indexed, (j, 0, N-1))
 
-    # Sum(K_j / Sum(K_k)) = Sum(K_j) / Sum(K_k) = 1
-    # rigorous check for a finite case (N=3) to prove the algebra works
+    # Verify the normalization algebra on a finite symbolic example.
     print(f"   Verifying for finite N=3 case...")
     N_val = 3
     K_vals = [Symbol(f'K_{i}', positive=True) for i in range(N_val)]
@@ -79,20 +73,11 @@ def test_markov_diffusion():
         assert False, f"Sum P_ij != 1, diff={diff}"
 
 
-    # =============================================================================
-    # CHECK 3: Convex Hull Property (Corollary S6)
-    # =============================================================================
+    # Check 3: stochastic averaging keeps outputs inside the convex hull of values.
     print("\n[3/3] Verifying non-expansive bounds (Corollary S6)...")
-
-    # Let y = sum P_j v_j
-    # ||y|| <= sum P_j ||v_j|| <= sum P_j V_max = V_max
 
     V_max = Symbol('V_max', positive=True)
     v_norm_j = IndexedBase('v_norm')
-
-    # Assume ||v_j|| <= V_max
-    # Bound for ||y||
-    # ||y|| <= Sum(P_j * ||v_j||) <= Sum(P_j * V_max) = V_max * Sum(P_j) = V_max
 
     print("   ||y_i|| = ||Σ_j P_ij v_j||")
     print("           ≤ Σ_j P_ij ||v_j||  (Triangle inequality)")

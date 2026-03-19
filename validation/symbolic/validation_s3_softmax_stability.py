@@ -4,8 +4,9 @@ Symbolic Validation: SI Lemma S3 — Softmax Stability
 
 Validates that ||σ(ℓ) - σ(ℓ')||_∞ ≤ (1/2) ||ℓ - ℓ'||_∞.
 
-The softmax Jacobian has ℓ∞ operator norm at most 1/2, making softmax
-a 1/2-Lipschitz function. This is crucial for the Bridge Theorem proof.
+The softmax Jacobian has ℓ∞ operator norm at most 1/2, so softmax is
+1/2-Lipschitz in the sup norm. This is the stability estimate used by the
+Bridge Theorem when logits are perturbed.
 
 Reference: si_rgat_paper.tex, Lemma S3
 """
@@ -20,20 +21,16 @@ def test_softmax_stability():
     print("=" * 65)
 
 
-    # =============================================================================
-    # CHECK 1: Jacobian structure for 2D softmax
-    # =============================================================================
+    # Check 1: derive the Jacobian explicitly in the 2D case.
     print("\n[1/4] Deriving Jacobian structure for 2D softmax...")
 
-    # For 2D case: σ = (σ₁, σ₂) with σ₁ + σ₂ = 1
-    # σᵢ = exp(ℓᵢ) / (exp(ℓ₁) + exp(ℓ₂))
-
+    # Two-class softmax written in closed form.
     l1, l2 = symbols('l_1 l_2', real=True)
     Z = exp(l1) + exp(l2)
     sigma1 = exp(l1) / Z
     sigma2 = exp(l2) / Z
 
-    # Jacobian entries
+    # Differentiate each output with respect to each input logit.
     J11 = diff(sigma1, l1)
     J12 = diff(sigma1, l2)
     J21 = diff(sigma2, l1)
@@ -49,10 +46,7 @@ def test_softmax_stability():
     print(f"   J₂₁ = ∂σ₂/∂ℓ₁ = {J21_simplified}")
     print(f"   J₂₂ = ∂σ₂/∂ℓ₂ = {J22_simplified}")
 
-    # Verify structure: J = diag(σ) - σσᵀ
-    # J_ii = σ_i(1 - σ_i) = σ_i - σ_i²
-    # J_ij = -σ_i σ_j for i ≠ j
-
+    # Verify the standard identity J = diag(sigma) - sigma sigma^T.
     J11_expected = sigma1 * (1 - sigma1)
     J12_expected = -sigma1 * sigma2
 
@@ -69,25 +63,15 @@ def test_softmax_stability():
         assert False, "J12 structure mismatch"
 
 
-    # =============================================================================
-    # CHECK 2: Row sum of absolute Jacobian values
-    # =============================================================================
+    # Check 2: bound the induced infinity norm by absolute row sums.
     print("\n[2/4] Computing max absolute row sum (ℓ∞ operator norm)...")
-
-    # For row i: sum_j |J_ij|
-    # Row 1: |σ₁(1-σ₁)| + |−σ₁σ₂| = σ₁(1-σ₁) + σ₁σ₂ = σ₁(1-σ₁+σ₂)
-    # Since σ₂ = 1-σ₁: = σ₁(1-σ₁+(1-σ₁)) = σ₁(2-2σ₁) = 2σ₁(1-σ₁)
 
     sigma = Symbol('sigma', real=True, positive=True)
 
-    # Absolute row sum for row i
+    # In the 2D case each row sum reduces to the same scalar function.
     row_sum = 2 * sigma * (1 - sigma)
 
     print(f"   Absolute row sum = 2σ(1-σ)")
-
-    # Maximum of 2σ(1-σ) over σ ∈ [0, 1]
-    # d/dσ [2σ(1-σ)] = 2 - 4σ = 0 → σ = 1/2
-    # Max value = 2 * 0.5 * 0.5 = 0.5
 
     critical_sigma = Rational(1, 2)
     max_row_sum = row_sum.subs(sigma, critical_sigma)
@@ -101,14 +85,8 @@ def test_softmax_stability():
         assert False, f"Max row sum = {max_row_sum}"
 
 
-    # =============================================================================
-    # CHECK 3: General T-dimensional case analysis
-    # =============================================================================
+    # Check 3: extend the same row-sum argument to arbitrary dimension.
     print("\n[3/4] Generalizing to T-dimensional softmax...")
-
-    # For T dimensions:
-    # Row i: J_ii + sum_{j≠i} |J_ij| = σᵢ(1-σᵢ) + σᵢ(1-σᵢ) = 2σᵢ(1-σᵢ)
-    # (since sum_{j≠i} σⱼ = 1-σᵢ)
 
     print("   For any dimension T:")
     print("   Row i absolute sum = |σᵢ(1-σᵢ)| + Σⱼ≠ᵢ |σᵢσⱼ|")
@@ -117,9 +95,7 @@ def test_softmax_stability():
     print("   SUCCESS: Lipschitz bound holds for all T.")
 
 
-    # =============================================================================
-    # CHECK 4: Mean Value Theorem application
-    # =============================================================================
+    # Check 4: convert the uniform Jacobian bound into a global Lipschitz estimate.
     print("\n[4/4] Mean Value Theorem verification...")
 
     print("   By MVT: ||σ(ℓ) - σ(ℓ')||_∞ ≤ sup_{t∈[0,1]} ||J(ℓ + t(ℓ'-ℓ))||_{∞→∞} × ||ℓ-ℓ'||_∞")
@@ -128,16 +104,13 @@ def test_softmax_stability():
     print("   SUCCESS: Lemma S3 fully verified.")
 
 
-    # =============================================================================
-    # CHECK 5: Numerical verification
-    # =============================================================================
+    # Check 5: confirm the inequality numerically on a representative random example.
     print("\n[5/5] Numerical verification...")
 
     def softmax(logits):
         exp_logits = np.exp(logits - np.max(logits))
         return exp_logits / exp_logits.sum()
 
-    # Random test
     np.random.seed(42)
     l = np.random.randn(10)
     l_prime = l + 0.1 * np.random.randn(10)

@@ -5,8 +5,8 @@ Symbolic Validation: SI Lemma S12 — Iterated BCH Accumulation
 Validates the BCH expansion for iterated rotor composition:
 exp(u1)...exp(uL) = exp(sum(u) + 1/2 sum([ui, uj]) + O(ε^3))
 
-This result underpins the "Depth Accumulates Curvature" theorem, showing
-how sequence order (non-commutativity) creates geometric structure.
+The emphasis here is the second-order BCH structure: pairwise commutators
+accumulate as layers compose, which is the source of curvature growth with depth.
 
 Reference: si_rgat_paper.tex, Lemma S12
 """
@@ -19,51 +19,27 @@ def test_bch_accumulation():
     print("=" * 65)
 
 
-    # =============================================================================
-    # Setup: Symbolic Lie Algebra (Cross Product)
-    # =============================================================================
-    # In spin(3) ~ R3, the Lie bracket [u, v] is the cross product u x v.
-    # But note the factor of 1/2 or 2 depending on physics convention.
-    # For unit quaternions q = exp(theta/2 * u), the generator is theta/2.
-    # Standard BCH: exp(X)exp(Y) = exp(X + Y + 1/2[X,Y] + ...)
-    # Here we check the abstract BCH structure equality X + Y + 1/2[X,Y].
-
+    # Work at the level of formal BCH bookkeeping. The only structure we need is
+    # the second-order commutator term.
     def commutator(u, v):
         """Symbolic commutator [u, v] = u*v - v*u (represented abstractly)."""
-        # We will track coefficients of basis commutators [ui, uj]
         return f"[{u},{v}]"
 
 
-    # =============================================================================
-    # CHECK 1: Second-Order BCH (L=2)
-    # =============================================================================
+    # Check 1: recall the standard two-factor BCH formula.
     print("\n[1/3] Verifying L=2 standard BCH...")
-
-    # exp(u1)exp(u2) = exp(w2)
-    # w2 = u1 + u2 + 1/2 [u1, u2] + O(ε^3)
 
     print("   Expected: u1 + u2 + 1/2[u1, u2]")
     print("   Formula verified by standard Lie theory definition.")
     print("   SUCCESS: L=2 base case holds.")
 
 
-    # =============================================================================
-    # CHECK 2: Iterative expansion (L=3)
-    # =============================================================================
+    # Check 2: add one more factor and verify all pairwise commutators appear.
     print("\n[2/3] Verifying L=3 recursive step...")
-
-    # exp(w2)exp(u3) = exp(w3)
-    # w3 = w2 + u3 + 1/2 [w2, u3] + ...
-
-    # w2 = u1 + u2 + 1/2[u1, u2]
-    # [w2, u3] = [u1 + u2 + ..., u3] = [u1, u3] + [u2, u3] (by bilinearity)
-
-    # w3 = (u1 + u2 + 1/2[u1, u2]) + u3 + 1/2([u1, u3] + [u2, u3])
-    #    = u1 + u2 + u3 + 1/2( [u1, u2] + [u1, u3] + [u2, u3] )
 
     print("   Computed w3 expansion (symbolic verification)...")
 
-    # Define a simple non-commutative symbol wrapper for verification
+    # Minimal wrapper to signal that these are formal non-commutative symbols.
     class NonCommutativeSymbol:
         def __init__(self, name):
             self.name = name
@@ -71,26 +47,21 @@ def test_bch_accumulation():
             return self.name
 
     def symbolic_commutator(a, b):
-        # Represents [a, b]
         return f"[{a},{b}]"
 
-    # Terms u1, u2, u3
+    # Formal generators.
     u1 = "u1"
     u2 = "u2"
     u3 = "u3"
 
-    # w2 expansion (L=2)
-    # w2 ~ u1 + u2 + 0.5*[u1, u2]
+    # Linear and quadratic contributions after two factors.
     w2_linear = [u1, u2]
     w2_quad = [symbolic_commutator(u1, u2)]
 
-    # w3 expansion recursive step: w3 ~ w2 + u3 + 0.5*[w2, u3]
-    # Linear part of w3:
+    # The recursive BCH step adds u3 to the linear part.
     w3_linear = w2_linear + [u3]
 
-    # Quadratic part of w3: 
-    # 1. Quad part of w2: [u1, u2]
-    # 2. [w2_linear, u3]: [u1+u2, u3] = [u1, u3] + [u2, u3]
+    # Quadratic terms are the old pair plus the new pairs involving u3.
     w3_quad = w2_quad + [symbolic_commutator(u1, u3), symbolic_commutator(u2, u3)]
 
     print(f"   Computed Quadratic Terms: {w3_quad}")
@@ -105,22 +76,8 @@ def test_bch_accumulation():
         assert False, "L=3 expansion mismatch."
 
 
-    # =============================================================================
-    # CHECK 3: Inductive Step Logic
-    # =============================================================================
+    # Check 3: state the generic inductive step.
     print("\n[3/3] Verifying inductive step logic for generic L...")
-
-    # Assume sum_{i<j} [ui, uj] holds for L.
-    # New term: exp(w_L) exp(u_{L+1})
-    # w_{L+1} approx w_L + u_{L+1} + 1/2 [w_L, u_{L+1}]
-
-    # [w_L, u_{L+1}] approx [ sum(ui), u_{L+1} ]  (ignoring higher order in w_L)
-    #               = sum_{i=1 to L} [ui, u_{L+1}]
-
-    # Total Quadratic Term:
-    # (Old Pairs 1..L) + (New Pairs i..L+1 for i in 1..L)
-    # = sum_{1<=i<j<=L} [ui, uj] + sum_{i=1}^L [ui, u_{L+1}]
-    # = sum_{1<=i<j<=L+1} [ui, uj]
 
     print("   Inductive addition: sum_{i=1}^L [u_i, u_{L+1}]")
     print("   This completes the triangular sum for L+1.")
